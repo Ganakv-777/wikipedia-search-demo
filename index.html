@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wiki Summary Search</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --accent: #2563eb;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2937;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 10% 10%, #111827, #0b1023 40%, #070b1a 100%), var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: start center;
+      padding: 32px 16px 48px;
+    }
+    .app {
+      width: 100%;
+      max-width: 760px;
+      display: grid;
+      gap: 16px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: linear-gradient(145deg, #1f2937, #0b1220);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+    header h1 {
+      font-size: 1.4rem;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    .panel {
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(6px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    form.search {
+      display: grid;
+      gap: 10px;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+    input[type="text"] {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 10px;
+      outline: none;
+      font-size: 1rem;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      width: 100%;
+    }
+    input[type="text"]::placeholder { color: var(--muted); }
+    input[type="text"]:focus {
+      border-color: #2c4cff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+    }
+    button {
+      border: 1px solid #2b3b7a;
+      background: linear-gradient(180deg, #2b5df0, #1e40af);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 110px;
+      transition: transform 0.04s ease, filter 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    }
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px); }
+    .hint {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin: 2px 2px 0;
+    }
+
+    .results {
+      display: grid;
+      gap: 14px;
+    }
+    .card {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .thumb {
+      width: 100%;
+      height: 140px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      background: #0b1220;
+    }
+    .content h2 {
+      margin: 0 0 6px;
+      font-size: 1.3rem;
+      letter-spacing: -0.02em;
+    }
+    .content .desc {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .content p {
+      margin: 0 0 12px;
+      line-height: 1.55;
+    }
+    .links a {
+      color: #93c5fd;
+      text-decoration: none;
+      border-bottom: 1px dashed #60a5fa;
+    }
+    .links a:hover { color: #bfdbfe; border-bottom-style: solid; }
+
+    .status {
+      font-size: 0.95rem;
+      color: var(--muted);
+      display: none;
+    }
+    .status.show { display: block; }
+    .status.loading { color: #93c5fd; }
+    .status.success { color: var(--success); }
+    .status.error { color: var(--error); }
+
+    @media (max-width: 640px) {
+      .card { grid-template-columns: 1fr; }
+      .thumb { height: 220px; }
+      button { min-width: 96px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-labelledby="app-title">
+    <header>
+      <div class="logo" aria-hidden="true">W</div>
+      <h1 id="app-title">Wiki Summary Search</h1>
+    </header>
+
+    <section class="panel">
+      <form id="search-form" class="search" autocomplete="off" role="search" aria-label="Wikipedia summary search">
+        <div class="controls">
+          <input
+            id="topic"
+            name="topic"
+            type="text"
+            placeholder="Search a topic (e.g., Ada Lovelace)"
+            aria-label="Topic to search on Wikipedia"
+            required
+          />
+          <button id="search-btn" type="submit" aria-label="Search Wikipedia">Search</button>
+        </div>
+        <div class="hint">Tip: Press Enter to search. Results show title, summary, and thumbnail (if available).</div>
+      </form>
+    </section>
+
+    <section id="status" class="status" aria-live="polite"></section>
+
+    <section id="results" class="results" aria-live="polite" aria-busy="false"></section>
+  </main>
+
+  <script>
+    (function () {
+      const form = document.getElementById('search-form');
+      const input = document.getElementById('topic');
+      const results = document.getElementById('results');
+      const statusEl = document.getElementById('status');
+      const searchBtn = document.getElementById('search-btn');
+
+      function setStatus(message, type = '') {
+        statusEl.textContent = message || '';
+        statusEl.className = 'status' + (message ? ' show' : '') + (type ? ' ' + type : '');
+      }
+
+      function clearResults() {
+        results.innerHTML = '';
+      }
+
+      function buildResultCard(data) {
+        const hasThumb = data.thumbnail && data.thumbnail.source;
+
+        const card = document.createElement('article');
+        card.className = 'panel card';
+
+        // Thumbnail
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        if (hasThumb) {
+          img.src = data.thumbnail.source;
+          img.alt = 'Thumbnail for ' + data.title;
+          img.width = data.thumbnail.width || 140;
+          img.height = data.thumbnail.height || 140;
+          img.loading = 'lazy';
+        } else {
+          img.alt = 'No thumbnail available';
+          img.style.display = 'none';
+        }
+
+        const content = document.createElement('div');
+        content.className = 'content';
+
+        const h2 = document.createElement('h2');
+        h2.textContent = data.title || 'Untitled';
+
+        const desc = document.createElement('div');
+        desc.className = 'desc';
+        desc.textContent = data.description || '';
+
+        const p = document.createElement('p');
+        p.textContent = data.extract || 'No summary available for this topic.';
+
+        const links = document.createElement('div');
+        links.className = 'links';
+        const pageUrl =
+          (data.content_urls && data.content_urls.desktop && data.content_urls.desktop.page) ||
+          (data.content_urls && data.content_urls.mobile && data.content_urls.mobile.page) ||
+          (data.lang && data.title ? `https://${data.lang}.wikipedia.org/wiki/${encodeURIComponent(data.title)}` : null);
+
+        if (pageUrl) {
+          const a = document.createElement('a');
+          a.href = pageUrl;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = 'Read full article on Wikipedia';
+          links.appendChild(a);
+        }
+
+        content.appendChild(h2);
+        if (desc.textContent) content.appendChild(desc);
+        content.appendChild(p);
+        if (links.children.length) content.appendChild(links);
+
+        card.appendChild(img);
+        card.appendChild(content);
+
+        // If no thumbnail, make it single-column visually
+        if (!hasThumb) {
+          card.style.gridTemplateColumns = '1fr';
+        }
+
+        return card;
+      }
+
+      async function fetchSummary(topic) {
+        const url = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(topic);
+        const res = await fetch(url, {
+          headers: { Accept: 'application/json' },
+          mode: 'cors',
+          cache: 'no-cache',
+        });
+
+        // Handle non-2xx
+        if (!res.ok) {
+          const isJSON = res.headers.get('content-type')?.includes('application/json');
+          let detail = '';
+          if (isJSON) {
+            try {
+              const errData = await res.json();
+              detail = errData.detail || errData.message || '';
+            } catch (_) {}
+          }
+          const msg = res.status === 404
+            ? 'Topic not found on Wikipedia.'
+            : `Request failed (${res.status}). ${detail}`.trim();
+          throw new Error(msg);
+        }
+
+        return res.json();
+      }
+
+      async function onSearch(e) {
+        e.preventDefault();
+        const topic = input.value.trim();
+        if (!topic) {
+          setStatus('Please enter a topic to search.', 'error');
+          input.focus();
+          return;
+        }
+
+        clearResults();
+        results.setAttribute('aria-busy', 'true');
+        setStatus('Fetching summary...', 'loading');
+        searchBtn.disabled = true;
+
+        try {
+          const data = await fetchSummary(topic);
+          const card = buildResultCard(data);
+          results.appendChild(card);
+          setStatus('Done.', 'success');
+        } catch (err) {
+          setStatus(err.message || 'Something went wrong while fetching the summary.', 'error');
+        } finally {
+          results.setAttribute('aria-busy', 'false');
+          searchBtn.disabled = false;
+        }
+      }
+
+      form.addEventListener('submit', onSearch);
+
+      // Optional: submit on Ctrl/Cmd+K to focus input quickly
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          input.focus();
+          input.select();
+        }
+      });
+
+      // Autofocus for convenience
+      setTimeout(() => input.focus(), 50);
+    })();
+  </script>
+</body>
+</html>
